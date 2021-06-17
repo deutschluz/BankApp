@@ -33,41 +33,69 @@ insert into accounts (acct_id, balance, status, customer_id)
 values(default,1000.00,'active',1);
 
 insert into accounts (acct_id, balance, status, customer_id)
-values(default,1000.00,'active',2);
+values(default,1000.00,'pending',2);
+
+update accounts 
+	set status='active'
+	where accounts.acct_id = 4 returning *;
+
+update accounts set status='pending'
+	where accounts.acct_id = 4 returning *;
+
+update accounts set status='rejected'
+	where accounts.acct_id = 4 returning *;
+
+insert into accounts (acct_id,balance,status,customer_id)
+values(default,1000.00,'active',1);
 
 select * from accounts;
 
 select a.acct_id, a.balance, a.status, a.customer_id from accounts a where a.acct_id = 1;
 
 create table transactions(
-	trans_id serial,
+	trans_id serial primary key,
 	status varchar(10),
 	amt dec(15,2) not null,
 	src_id integer references accounts(acct_id),
-	dst_id integer references accounts(acct_id),
-	primary key(src_id,dst_id)
+	dst_id integer references accounts(acct_id)
 );
 
 insert into transactions (trans_id, status, amt, src_id, dst_id)
-values(default,'accepted',100,1,1);
+values(default,'pending',100,1,2);
+
+insert into transactions (trans_id, status, amt, src_id, dst_id)
+values(default,'pending',100,2,1);
+
+update transactions 
+set status = 'accepted'	
+where transactions.src_id = 1
+   and transactions.dst_id = 2 
+    and transactions.amt = 100 returning *;
 
 select * from transactions;
+
+select t.trans_id, t.src_id, t.dst_id, t.status, t.amt from transactions t where t.src_id = 5 and t.dst_id = 4;
+
+drop procedure transfer;
+
+create or replace procedure transfer(src int, dst int, amt double precision)
 language plpgsql
 as $$
 begin 
 	--subtracting amt from sender acct.
-	update account
-	set balance = balance - amount
-	where id = sender;
+	update accounts 
+	set balance = balance - amt
+	where acct_id = src;
 
 	--adding amout to receiver acct.
-	update account
-	set balance = balance + amount
-	where id = receiver;
-
+	update accounts
+	set balance = balance + amt
+	where acct_id = dst;
+	
+	--select * from accounts where acct_id = dst;
 	commit;
 end;$$
 
-call transfer(1,2,1000);
+call transfer(1,2,100.00);
 
-select * from account;
+select * from accounts;
